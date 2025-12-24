@@ -5,14 +5,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 from database import Base, str_256
 import enum
 
-#metadata_obj = MetaData()
+metadata_obj = MetaData()
 
-# workers_table = Table(
-#     "workers",
-#     metadata_obj,
-#     Column("id", Integer, primary_key=True),
-#     Column("username", String),
-# )
+workers_table = Table(
+    "workers",
+    metadata_obj,
+    Column("id", Integer, primary_key=True),
+    Column("username", String),
+)
 
 intpk = Annotated[int, mapped_column(primary_key=True)]
 updated_at = Annotated[datetime.datetime, mapped_column(server_default=text("TIMEZONE('utc', now())"), onupdate=datetime.datetime.utcnow)]

@@ -3,9 +3,18 @@ import os
 import sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
-#from queries.core import create_tables, insert_data
-from queries.orm import async_insert_data, create_tables, insert_data
+from queries.core import SyncCore, AsyncCore
+from queries.orm import SyncORM, AsyncORM
 
-create_tables()
-#insert_data()
-#asyncio.run(async_insert_data())
+SyncORM.create_tables()
+# SyncCore.create_tables()
+
+
+SyncORM.insert_workers()
+# SyncCore.create_tables()
+
+# SyncCore.select_workers()
+# SyncCore.update_workers()
+
+SyncORM.select_workers()
+SyncORM.update_workers()
