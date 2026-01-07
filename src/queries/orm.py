@@ -1,6 +1,8 @@
 from operator import and_
 
 from sqlalchemy import text, insert, inspect, select, func, cast, Integer
+from sqlalchemy.orm import aliased
+
 from database import (
     sync_engine,
     async_engine,
@@ -103,6 +105,102 @@ class SyncORM:
                 .group_by(ResumesORM.workload)
                 .having(cast(func.avg(ResumesORM.compensation), Integer) > 70000)
             )
+            print(query.compile(compile_kwargs={"literal_binds": True}))
+            res = session.execute(query)
+            result = res.all()
+            print(result)
+
+    @staticmethod
+    def insert_additional_resumes():
+        with session_factory() as session:
+            workers = [
+                {"username": "Artem"},  # id 3
+                {"username": "Roman"},  # id 4
+                {"username": "Petr"},  # id 5
+            ]
+            resumes = [
+                {
+                    "title": "Python программист",
+                    "compensation": 60000,
+                    "workload": "fulltime",
+                    "worker_id": 3,
+                },
+                {
+                    "title": "Machine Learning Engineer",
+                    "compensation": 70000,
+                    "workload": "parttime",
+                    "worker_id": 3,
+                },
+                {
+                    "title": "Python Data Scientist",
+                    "compensation": 80000,
+                    "workload": "parttime",
+                    "worker_id": 4,
+                },
+                {
+                    "title": "Python Analyst",
+                    "compensation": 90000,
+                    "workload": "fulltime",
+                    "worker_id": 4,
+                },
+                {
+                    "title": "Python Junior Developer",
+                    "compensation": 100000,
+                    "workload": "fulltime",
+                    "worker_id": 5,
+                },
+            ]
+            insert_workers = insert(WorkersORM).values(workers)
+            insert_resumes = insert(ResumesORM).values(resumes)
+            session.execute(insert_workers)
+            session.execute(insert_resumes)
+            session.commit()
+
+    @staticmethod
+    def join_cte_subquery_window_func():
+        """
+        WITH helper2 AS (
+            SELECT *, compensation-avg_workload_compensation AS compensation_diff
+            FROM
+            (SELECT
+                w.id,
+                w.username,
+                r.compensation,
+                r.workload,
+                avg(r.compensation) OVER (PARTITION BY workload)::int AS avg_workload_compensation
+            FROM resumes r
+            JOIN workers w ON r.worker_id = w.id) helper1
+        )
+        SELECT * FROM helper2
+        ORDER BY compensation_diff DESC;
+        """
+        with session_factory() as session:
+            r = aliased(ResumesORM)
+            w = aliased(WorkersORM)
+            subq = (
+                select(
+                    r,
+                    w,
+                    func.avg(r.compensation)
+                    .over(partition_by=r.workload)
+                    .cast(Integer)
+                    .label("avg_workload_compensation"),
+                )
+                # .select_from(r)
+                .join(r, r.worker_id == w.id).subquery("helper1")
+            )
+            cte = select(
+                subq.c.worker_id,
+                subq.c.username,
+                subq.c.compensation,
+                subq.c.workload,
+                subq.c.avg_workload_compensation,
+                (subq.c.compensation - subq.c.avg_workload_compensation).label(
+                    "compensation_diff"
+                ),
+            ).cte("helper2")
+            query = select(cte).order_by(cte.c.compensation_diff.desc())
+
             print(query.compile(compile_kwargs={"literal_binds": True}))
             res = session.execute(query)
             result = res.all()
