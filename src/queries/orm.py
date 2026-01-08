@@ -1,7 +1,7 @@
 from operator import and_
 
 from sqlalchemy import text, insert, inspect, select, func, cast, Integer
-from sqlalchemy.orm import aliased, joinedload, selectinload
+from sqlalchemy.orm import aliased, joinedload, selectinload, contains_eager
 
 from database import (
     sync_engine,
@@ -248,6 +248,55 @@ class SyncORM:
 
             worker_2_resumes = result[1].resumes
             print(worker_2_resumes)
+
+    @staticmethod
+    def select_workers_with_condition_relationship():
+        with session_factory() as session:
+            query = select(WorkersORM).options(
+                selectinload(WorkersORM.resumes_parttime)
+            )
+
+            res = session.execute(query)
+            result = res.scalars().all()
+
+            print(result)
+
+    @staticmethod
+    def select_workers_with_condition_relationship_contains_eager():
+        with session_factory() as session:
+            query = (
+                select(WorkersORM)
+                .join(WorkersORM.resumes)
+                .options(contains_eager(WorkersORM.resumes))
+                .filter(ResumesORM.workload == "parttime")
+            )
+
+            res = session.execute(query)
+            result = res.unique().scalars().all()
+
+            print(result)
+
+    @staticmethod
+    def select_workers_with_condition_relationship_contains_eager_with_limit():
+        with session_factory() as session:
+            subq = (
+                select(ResumesORM.id.label("parttime_resume_id"))
+                .filter(ResumesORM.worker_id == WorkersORM.id)
+                .order_by(WorkersORM.id.desc())
+                .limit(1)
+                .scalar_subquery()
+                .correlate(WorkersORM)
+            )
+
+            query = (
+                select(WorkersORM)
+                .join(ResumesORM, ResumesORM.id.in_(subq))
+                .options(contains_eager(WorkersORM.resumes))
+            )
+
+            res = session.execute(query)
+            result = res.unique().scalars().all()
+            print(result)
 
 
 class AsyncORM:
