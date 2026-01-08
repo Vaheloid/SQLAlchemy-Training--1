@@ -1,7 +1,7 @@
 from operator import and_
 
 from sqlalchemy import text, insert, inspect, select, func, cast, Integer
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload, selectinload
 
 from database import (
     sync_engine,
@@ -201,10 +201,53 @@ class SyncORM:
             ).cte("helper2")
             query = select(cte).order_by(cte.c.compensation_diff.desc())
 
-            print(query.compile(compile_kwargs={"literal_binds": True}))
             res = session.execute(query)
             result = res.all()
-            print(result)
+            print(f"{len(result)=}. {result=}")
+
+    @staticmethod
+    def select_workers_with_lazy_relationship():
+        with session_factory() as session:
+            query = select(WorkersORM)
+
+            res = session.execute(query)
+            result = res.scalars().all()
+
+            worker_1_resumes = result[0].resumes
+            print(worker_1_resumes)
+
+            worker_2_resumes = result[1].resumes
+            print(worker_2_resumes)
+
+    @staticmethod
+    # joinedload для многие к одному, один к одному
+    def select_workers_with_joined_relationship():
+        with session_factory() as session:
+            query = select(WorkersORM).options(joinedload(WorkersORM.resumes))
+
+            res = session.execute(query)
+            result = res.unique().scalars().all()
+
+            worker_1_resumes = result[0].resumes
+            print(worker_1_resumes)
+
+            worker_2_resumes = result[1].resumes
+            print(worker_2_resumes)
+
+    @staticmethod
+    # selectinload для один ко многим, многие ко многим
+    def select_workers_with_selectin_relationship():
+        with session_factory() as session:
+            query = select(WorkersORM).options(selectinload(WorkersORM.resumes))
+
+            res = session.execute(query)
+            result = res.unique().scalars().all()
+
+            worker_1_resumes = result[0].resumes
+            print(worker_1_resumes)
+
+            worker_2_resumes = result[1].resumes
+            print(worker_2_resumes)
 
 
 class AsyncORM:

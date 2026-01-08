@@ -1,7 +1,7 @@
 import datetime
 from typing import Optional, Annotated
 from sqlalchemy import ForeignKey, Table, Column, Integer, String, MetaData, func, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base, str_256
 import enum
 
@@ -15,18 +15,30 @@ workers_table = Table(
 )
 
 intpk = Annotated[int, mapped_column(primary_key=True)]
-updated_at = Annotated[datetime.datetime, mapped_column(server_default=text("TIMEZONE('utc', now())"), onupdate=datetime.datetime.utcnow)]
-created_at = Annotated[datetime.datetime, mapped_column(server_default=text("TIMEZONE('utc', now())"))]
+updated_at = Annotated[
+    datetime.datetime,
+    mapped_column(
+        server_default=text("TIMEZONE('utc', now())"), onupdate=datetime.datetime.utcnow
+    ),
+]
+created_at = Annotated[
+    datetime.datetime, mapped_column(server_default=text("TIMEZONE('utc', now())"))
+]
+
 
 class WorkersORM(Base):
     __tablename__ = "workers"
     id: Mapped[intpk]
     username: Mapped[str]
 
+    resumes: Mapped[list["ResumesORM"]] = relationship()
+
+
 class Workload(enum.Enum):
     parttime = "parttime"
     fulltime = "fulltime"
-    
+
+
 class ResumesORM(Base):
     __tablename__ = "resumes"
     id: Mapped[intpk]
@@ -36,3 +48,10 @@ class ResumesORM(Base):
     worker_id: Mapped[int] = mapped_column(ForeignKey("workers.id", ondelete="CASCADE"))
     updated_at: Mapped[updated_at]
     created_at: Mapped[created_at]
+
+    worker: Mapped["WorkersORM"] = relationship()
+
+    repr_cols_num = 4
+    repr_cols = tuple(
+        "created_at",
+    )
